@@ -26,9 +26,10 @@ Kết hợp TẤT CẢ những gì đã học trong 1 project hoàn chỉnh.
 ├── app/
 │   ├── main.py         # Entry point — kết hợp tất cả
 │   ├── config.py       # 12-factor config
-│   ├── auth.py         # API Key + JWT
-│   ├── rate_limiter.py # Rate limiting
-│   └── cost_guard.py   # Budget protection
+│   ├── auth.py         # API Key authentication
+│   ├── rate_limiter.py # Redis sliding-window rate limiting
+│   ├── cost_guard.py   # Redis monthly budget protection
+│   └── storage.py      # Redis conversation history
 ├── Dockerfile          # Multi-stage, production-ready
 ├── docker-compose.yml  # Full stack
 ├── railway.toml        # Deploy Railway
@@ -43,21 +44,21 @@ Kết hợp TẤT CẢ những gì đã học trong 1 project hoàn chỉnh.
 ## Chạy Local
 
 ```bash
-# 1. Setup
-cp .env.example .env
+# 1. Chạy với Docker Compose và scale 3 agent
+docker compose up --build --scale agent=3
 
-# 2. Chạy với Docker Compose
-docker compose up
+# 2. Test qua Nginx load balancer
+curl http://localhost:8080/health
+curl http://localhost:8080/ready
 
-# 3. Test
-curl http://localhost/health
-
-# 4. Lấy API key từ .env, test endpoint
-API_KEY=$(grep AGENT_API_KEY .env | cut -d= -f2)
-curl -H "X-API-Key: $API_KEY" \
-     -X POST http://localhost/ask \
+# 3. Test endpoint bảo vệ (key local mặc định là local-secret)
+curl -H "X-API-Key: local-secret" \
+     -X POST http://localhost:8080/ask \
      -H "Content-Type: application/json" \
      -d '{"question": "What is deployment?"}'
+
+# 4. Xem history được chia sẻ qua Redis
+curl -H "X-API-Key: local-secret" http://localhost:8080/history
 ```
 
 ---
@@ -73,11 +74,15 @@ railway login
 railway init
 railway variables set OPENAI_API_KEY=sk-...
 railway variables set AGENT_API_KEY=your-secret-key
+railway variables set REDIS_URL=redis://...
 railway up
 
 # Nhận public URL!
 railway domain
 ```
+
+Railway injects `PORT` at runtime. The Docker command reads `${PORT:-8000}`;
+do not override it with a literal `$PORT` in `railway.toml`.
 
 ---
 
@@ -86,7 +91,7 @@ railway domain
 1. Push repo lên GitHub
 2. Render Dashboard → New → Blueprint
 3. Connect repo → Render đọc `render.yaml`
-4. Set secrets: `OPENAI_API_KEY`, `AGENT_API_KEY`
+4. Set secrets: `OPENAI_API_KEY`, `AGENT_API_KEY`, `REDIS_URL`
 5. Deploy → Nhận URL!
 
 ---

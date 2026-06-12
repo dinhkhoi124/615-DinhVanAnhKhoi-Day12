@@ -1,4 +1,3 @@
-"""Production config — 12-Factor: tất cả từ environment variables."""
 import os
 import logging
 from dataclasses import dataclass, field
@@ -29,16 +28,24 @@ class Settings:
 
     # Rate limiting
     rate_limit_per_minute: int = field(
-        default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "20"))
+        default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "10"))
     )
 
-    # Budget
-    daily_budget_usd: float = field(
-        default_factory=lambda: float(os.getenv("DAILY_BUDGET_USD", "5.0"))
+    # Budget and history
+    monthly_budget_usd: float = field(
+        default_factory=lambda: float(os.getenv("MONTHLY_BUDGET_USD", "10.0"))
+    )
+    max_history_messages: int = field(
+        default_factory=lambda: int(os.getenv("MAX_HISTORY_MESSAGES", "20"))
+    )
+    history_ttl_seconds: int = field(
+        default_factory=lambda: int(os.getenv("HISTORY_TTL_SECONDS", "3600"))
     )
 
     # Storage
-    redis_url: str = field(default_factory=lambda: os.getenv("REDIS_URL", ""))
+    redis_url: str = field(
+        default_factory=lambda: os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    )
 
     def validate(self):
         logger = logging.getLogger(__name__)
